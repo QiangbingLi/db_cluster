@@ -1,0 +1,74 @@
+version: '3.8'
+x-postgres-common:
+  &postgres-common
+  image: postgres:14-alpine
+  user: postgres  # or root, defualt is root. Determines $whoami when exec into the container.
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U postgres --dbname=postgres'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  environment:
+    #POSTGRES_USER: user  # this will overwite the orginal root user postgres
+    #POSTGRES_DB: postgres
+    #POSTGRES_PASSWORD: postgres
+    PGUSER: replicator
+    PGPASSWORD: replicator
+
+### the primary instance needs to be ready running on srv1, whose IP is 10.0.2.101
+services:
+  postgres_replica_1:
+    <<: *postgres-common
+    container_name: db_cluster_postgres_replica_1
+    ports:
+      - 5432:5432
+    command: |
+      bash -c "
+      until pg_basebackup --host 10.0.2.101 --port 5432 -X stream -S replication_slot -v -R -D /var/lib/postgresql/data/
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+
+  postgres_replica_2:
+    <<: *postgres-common
+    container_name: db_cluster_postgres_replica_2
+    ports:
+      - 5433:5432
+    command: |
+      bash -c "
+      until pg_basebackup --host db_cluster_postgres_replica_1 --port 5432 -X stream -C -S replication_slot -v -R -D /var/lib/postgresql/data/
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - postgres_replica_1
+
+  postgres_replica_3:
+    <<: *postgres-common
+    container_name: db_cluster_postgres_replica_3
+    ports:
+      - 5434:5432
+    command: |
+      bash -c "
+      until pg_basebackup --host db_cluster_postgres_replica_2 --port 5432 -X stream -C  -S replication_slot -v -R -D /var/lib/postgresql/data/
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - postgres_replica_2

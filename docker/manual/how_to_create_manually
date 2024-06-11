@@ -1,0 +1,81 @@
+The primary server and replicas collectively form a database cluster.
+Primary server: write and read
+Replicas: read only, standby mode
+
+
+#### Primary server on srv1 10.0.2.101
+on srv1
+$ docker run --name db_primary -p 5432:5432 -v /postgresql/data:/var/lib/postgresql/data 
+  -e POSTGRES_PASSWORD=rootpass -d postgres
+
+docker exec into the container and in db server create a replication user
+postgres=# CREATE ROLE repuser WITH REPLICATION LOGIN PASSWORD 'changeme';
+
+$ docker stop db_primary
+
+$ sudo nano /postgresql/data/postgresql.conf
+locate and specify wal_level, which specifies the amount of information to be 
+written to the Write Ahead Log (WAL) file.:
+  
+  wal_level = logical
+
+Then set
+ 
+  wal_log_hints = on
+
+, which allows the PostgreSQL server to write the entire content of each disk page to the 
+WAL file during the first modification of the page.
+
+
+$ sudo cat postgresql/data/pg_hba.conf 
+Add the line
+host replication repuser 0.0.0.0/0 md
+
+$ docker restart db_primary
+
+
+#### Replications in standby mode on srv2 10.0.2.102
+On srv2
+$ docker run --name db_replica_1 -p 5432:5432 -v /postgresql-1/data:/var/lib/postgresql/data 
+  -e POSTGRES_PASSWORD=rootpass -d postgres
+
+docker exec into container db_replica_1
+$ rm -rf /var/lib/postgresql/data/*
+
+and copy data from the primary node to the replica node.
+$ pg_basebackup -h 10.0.2.101 -U repuser -X stream -C -S replica_1 -v -R -W -D /var/lib/postgresql/data/
+
+-h: This option specifies the host, in this case, the IP address of the master node.
+-U: The option specifies the replication user. This is the user that was configured on the primary 
+node and which will be used by the replica node to connect to it. In our case, the replication user 
+is called repuser.
+-X: The option along with the stream value instructs the pg_basebackup utility to 
+stream and include the WAL files in the backup.
+-C: The option allows you to create a replication slot before the backup gets underway. 
+The option is used along with the -S option to specify the slot name. In this case, our replication 
+slot is called replica_1.
+-v: This prints out verbose output that indicates the progress of the backup process from the primary 
+node to the replica.
+-R: The option creates two files; an empty recovery configuration file called standby.signal and a 
+primary node connection settings file called postgresql.auto.conf. The postgresql.auto.conf file contains 
+connection information about the primary node and the standby.signal file informs your 
+replica cluster that it should operate as a standby server.
+-W: This prompts you to provide a password for the replica_user replication user.
+-D: Lastly, the -D option allows you to include the directory that you want to export the backup files. 
+In this example, we are placing the data under the/var/lib/postgresql/data/ directory in the replica node.
+
+Get out and back to srv1 
+$ docker restart repilca_1
+
+
+Start another db_replica_2 on srv1 in the same steps as db_replica_1.
+
+ 
+# To verify that the replicas are connected to the primary node and that the primary is streaming:
+In container db_primary.srv2
+postgres=# SELECT client_addr, state
+FROM pg_stat_replication;
+
+postgres=# select slot_name from pg_replication_slots;
+
+Next create a database and add tables therein, and confirm that the results are synced to the relicas.

@@ -1,0 +1,33 @@
+version: '3.8'
+x-postgres-common:
+  &postgres-common
+  image: postgres:14-alpine
+  user: postgres # or root, default is root. Determines $ whoami when exec into the container  
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U postgres --dbname=postgres'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+services:
+  postgres_primary:
+    <<: *postgres-common
+    container_name: db_cluster_postgres_primary
+    ports:
+      - 5432:5432
+    environment:
+      #POSTGRES_USER: user   # this will overwite the original root user postgres 
+      #POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
