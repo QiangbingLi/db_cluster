@@ -1,0 +1,25 @@
+- hosts: srv2
+  become: no
+  #gather_facts: yes
+  tasks:
+  - name: Ping host srv2
+    ansible.builtin.ping:
+
+  - name: print message
+    ansible.builtin.debug:
+      msg: server unbuntu-srv2 is available
+
+  - name: copy local source code to srv2
+    copy:
+      src: ../../docker/compose/replicas
+      dest: ./db_cluster
+      remote_src: no
+
+  - name: shut down the replicated servers of db cluster on srv2 using Docker Compose
+    docker_compose:
+      project_src: ./db_cluster/replicas
+      files:
+      - docker-compose.yaml
+      pull: no
+      state: absent
+

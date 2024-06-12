@@ -1,0 +1,3 @@
+
+
+$ ansible-playbook -i ../inventory.yml pb_docker_compose_up.yml -u liqb --ask-pass
