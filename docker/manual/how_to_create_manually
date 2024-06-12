@@ -69,6 +69,11 @@ $ docker restart repilca_1
 
 
 Start another db_replica_2 on srv1 in the same steps as db_replica_1.
+This forms a hub-spoke pattern where all replicas connect to the single primary
+instance, adding work loads to the primary. A chain pattern will be a better 
+solution where the subsequent replica conencts to its previous replica rather than the primary:
+Primary <- replica_1 <- replica_2 <- replica_3 <- ..... 
+
 
  
 # To verify that the replicas are connected to the primary node and that the primary is streaming:
