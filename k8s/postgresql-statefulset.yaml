@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+spec:
+  selector:
+    matchLabels:
+      app: postgresql
+      app.kubernetes.io/name: postgresql
+  serviceName: postgresql
+  replicas: 1   # for test, should be 3
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        app.kubernetes.io/name: postgresql
+    spec:
+      initContainers:
+      - name: init-postgresql
+        image: postgres:14-alpine
+        command:
+        - bash
+        - "-c"
+        - |
+          set -ex
+          # Generate postgresql server-id from pod ordinal index.
+          [[ $HOSTNAME =~ -([0-9]+)$ ]] || exit 1
+          ordinal=${BASH_REMATCH[1]}
+          echo [postgresql id] > /mnt/conf.d/server-id.cnf
+          # Add an offset to server-id value.
+          echo server-id=$((100 + $ordinal)) >> /mnt/conf.d/server-id.cnf
+          # Copy appropriate initilization script from config-map to emptyDir.
+          if [[ $ordinal -eq 0 ]]; then
+            cp /mnt/config-map/init-primary.sql /mnt/conf.d/
+          else
+            cp /mnt/config-map/init-replica.sql /mnt/conf.d/
+          fi
+          # Change owner of the persistent data volume to user:group,
+          # where 70 is the id of EXISTENT user and group 'postgres'. 
+          # The id will be identical to the runAsUser and runASGroup 
+          # of the container spec as shown in the following section. This 
+          # the only way to set the ownship of file system. Setting 
+          # fsGroup will NOT work.    
+          chown -R 70:70 /var/lib/postgresql/data
+        volumeMounts:
+        - name: conf
+          mountPath: /mnt/conf.d
+        - name: config-map
+          mountPath: /mnt/config-map
+        - name: data
+          mountPath: /var/lib/postgresql/data 
+
+      containers:
+      - name: postgresql
+        image: postgres:14-alpine
+        securityContext:
+          runAsUser: 70  # postgres user in container
+          runAsGroup: 70
+        env:
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+        - name: POSTGRES_INITDB_ARGS
+          value: "--auth-host=scram-sha-256"
+        command:
+        - bash
+        - "-c"
+        - |
+          set -ex
+          [ `ls -1A /var/lib/postgresql/data | wc -l` -eq 0 ] && \
+          bash /usr/local/bin/docker-enforce-initdb.sh || \
+          echo database exists, skipping initilization .....
+          bash docker-entrypoint.sh;
+          postgres \
+          -c wal_level=replica \
+          -c hot_standby=on \
+          -c max_wal_senders=10 \
+          -c max_replication_slots=10 \
+          -c hot_standby_feedback=on \
+        ports:
+        - name: postgresql
+          containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data   # :/tmp/hostpath-provisioner/default/data-postgresql-0
+          #subPath: postgresql
+        - name: conf
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            cpu: 200m
+            memory: 300Mi
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "postgres", "-d", "postgres"]
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            # Check we can execute queries.
+            command: ["psql", "-c", "SELECT 1"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+      volumes:
+      - name: conf
+        emptyDir: {}
+      - name: config-map
+        configMap:
+          name: postgresql
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi

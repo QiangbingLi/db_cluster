@@ -1,0 +1,30 @@
+An implementation of database cluster that is composed of a single write-only primary instance 
+and multiple read-only standby replicas.
+
+In this primary-stanby pattern, all db instances works on their own, sharing no data 
+while all replicas syncing to the latest state of the primary. To minimize the work loads 
+of the primary instance, the replicas connect to the primary instance NOT in a hub-spoke topology, 
+but a chain-like sequential:
+primary <- replica_1 <- replica_2 <- replica_3 .....
+
+In this sequential implementation writings to the primary instance are passed down to all 
+downstream replicas sequentially.  
+     
+postgresql is used in this demo.
+
+keywords:
+** statefulset
+** pods composed of multiple containers
+** init containers
+#** sidecar containers (not in use in for the poistgresql db)
+** headless service (for accessing primary instance)
+** regular service (Cluster IP, for read only loadbalancing, including the pimary instance)
+** persistent volums
+
+
+Further thought:
+1. What if the primary instance fails over? Can one of the replicas take over?
+2. Noting the resemblance of the suquential syncing and the linked list, extend 
+   k8s with a custom controler for crd db_cluster, in python, for instance.   
+ 
+

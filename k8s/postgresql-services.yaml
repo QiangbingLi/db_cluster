@@ -1,0 +1,32 @@
+# Headless service for stable DNS entries of StatefulSet members.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+    app.kubernetes.io/name: postgresql
+spec:
+  ports:
+  - name: postgresql
+    port: 5432
+  clusterIP: None
+  selector:
+    app: postgresql
+---
+# Client service for connecting to any postgresql instance for reads.
+# For writes, you must instead connect to the primary: postgresql-0.postgresql.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-read
+  labels:
+    app: postgresql
+    app.kubernetes.io/name: postgresql
+    readonly: "true"
+spec:
+  ports:
+  - name: postgresql
+    port: 5432
+  selector:
+    app: postgresql
