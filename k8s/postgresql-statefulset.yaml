@@ -8,7 +8,7 @@ spec:
       app: postgresql
       app.kubernetes.io/name: postgresql
   serviceName: postgresql
-  replicas: 1   # for test, should be 3
+  replicas: 3
   template:
     metadata:
       labels:
@@ -67,22 +67,42 @@ spec:
         - "-c"
         - |
           set -ex
-          [ `ls -1A /var/lib/postgresql/data | wc -l` -eq 0 ] && \
-          bash /usr/local/bin/docker-enforce-initdb.sh || \
-          echo database exists, skipping initilization .....
-          bash docker-entrypoint.sh;
-          postgres \
-          -c wal_level=replica \
-          -c hot_standby=on \
-          -c max_wal_senders=10 \
-          -c max_replication_slots=10 \
-          -c hot_standby_feedback=on \
+          [[ $HOSTNAME =~ -([0-9]+)$ ]] || exit 1
+          ordinal=${BASH_REMATCH[1]}
+          if [[ $ordinal -eq 0 ]]; then
+            # primary
+            # note: there should be no space after \, which means line continuation
+            [ `ls -1A /var/lib/postgresql/data | wc -l` -eq 0 ] && \
+            bash /usr/local/bin/docker-enforce-initdb.sh || \
+            echo database exists, skipping initilization .....
+            bash docker-entrypoint.sh
+            postgres \
+            -c wal_level=replica \
+            -c hot_standby=on \
+            -c max_wal_senders=10 \
+            -c max_replication_slots=10 \
+            -c hot_standby_feedback=on
+          else
+            # replicas
+            export PGUSER=replicator
+            export PGPASSWORD=replicator
+            until \
+            pg_basebackup --host postgresql-$(($ordinal-1)).postgresql --port 5432 -X stream \
+            -C -S replication_slot -v -R -D /var/lib/postgresql/data/
+            do
+            echo 'Waiting for primary to connect...'
+            sleep 1s
+            done
+            echo 'Backup done, starting replica...'
+            chmod 0700 /var/lib/postgresql/data
+            postgres
+          fi
         ports:
         - name: postgresql
           containerPort: 5432
         volumeMounts:
         - name: data
-          mountPath: /var/lib/postgresql/data   # :/tmp/hostpath-provisioner/default/data-postgresql-0
+          mountPath: /var/lib/postgresql/data   # :/tmp/hostpath-provisioner/default/data-postgresql-n, n=0,1,2...
           #subPath: postgresql
         - name: conf
           mountPath: /docker-entrypoint-initdb.d
