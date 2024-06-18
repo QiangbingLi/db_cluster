@@ -29,15 +29,14 @@ spec:
           echo [postgresql id] > /mnt/conf.d/server-id.cnf
           # Add an offset to server-id value.
           echo server-id=$((100 + $ordinal)) >> /mnt/conf.d/server-id.cnf
-          # Copy appropriate initilization script from config-map to emptyDir.
-          if [[ $ordinal -eq 0 ]]; then
-            cp /mnt/config-map/init-primary.sql /mnt/conf.d/
-          else
-            cp /mnt/config-map/init-replica.sql /mnt/conf.d/
-          fi
+          # Copy primary initilization script from config-map to emptyDir.
+          # (Need a space after [ and no space before or after = in the assignment.
+          #  or get the comand [0 not found error.)
+          [ $ordinal -eq 0 ] && \
+          cp /mnt/config-map/init-primary.sql /mnt/conf.d/
           # Change owner of the persistent data volume to user:group,
-          # where 70 is the id of EXISTENT user and group 'postgres'. 
-          # The id will be identical to the runAsUser and runASGroup 
+          # where 70 is the id of the existent user and group 'postgres'. 
+          # The id is identical to the runAsUser and runASGroup 
           # of the container spec as shown in the following section. This 
           # the only way to set the ownship of file system. Setting 
           # fsGroup will NOT work.    

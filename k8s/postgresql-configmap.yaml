@@ -12,15 +12,6 @@ data:
     */
     CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'replicator';
     SELECT pg_create_physical_replication_slot('replication_slot');
-  init-replica.sql: |
-    /* 
-      init script that is run at the startup of the replicated instances.
-      Use the same name for replication slot as for the primary case.
-      Do not need to create replication user as it will be copyed from the 
-      primary instance at the startup of the instance.
-    */
-    SELECT pg_create_physical_replication_slot('replication_slot');
-
 
 
 
