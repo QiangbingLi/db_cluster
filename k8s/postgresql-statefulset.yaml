@@ -84,7 +84,8 @@ spec:
             -c max_replication_slots=10 \
             -c hot_standby_feedback=on
           else
-            # replicas
+            # replicas, if data is empty then do backup
+            if [[ `ls -1A /var/lib/postgresql/data | wc -l` -eq 0 ]]; then
             export PGUSER=replicator
             export PGPASSWORD=replicator
             until \
@@ -96,6 +97,7 @@ spec:
             done
             echo 'Backup done, starting replica...'
             chmod 0700 /var/lib/postgresql/data
+            fi
             postgres
           fi
         ports:
