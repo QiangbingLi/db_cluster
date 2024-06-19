@@ -1,4 +1,4 @@
-An implementation of database cluster that is composed of a single write-only primary instance 
+Bootstrapping a database cluster that is composed of a single write-only primary instance 
 and multiple read-only standby replicas.
 
 In this primary-stanby pattern, all db instances works on their own, sharing no data 

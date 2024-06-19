@@ -8,6 +8,7 @@ spec:
       app: postgresql
       app.kubernetes.io/name: postgresql
   serviceName: postgresql
+  minReadySeconds: 10 # by default is 0
   replicas: 3
   template:
     metadata:
@@ -114,15 +115,15 @@ spec:
           exec:
             command: ["pg_isready", "-U", "postgres", "-d", "postgres"]
           initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 15
         readinessProbe:
           exec:
             # Check we can execute queries.
             command: ["psql", "-c", "SELECT 1"]
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 5
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 15
       volumes:
       - name: conf
         emptyDir: {}
