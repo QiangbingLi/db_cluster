@@ -1,0 +1,46 @@
+###############
+kubectl run --env="PGPASSWORD=postgres" postgresql-client --image=postgres:14-alpine -i --rm --restart=Never -- \
+psql -U postgres -h postgresql-0.postgresql <<EOF
+CREATE DATABASE test; 
+\c test
+CREATE TABLE message(message TEXT);
+INSERT INTO message VALUES ('hello');
+EOF
+
+
+#########
+kubectl run --env="PGPASSWORD=postgres" postgresql-client --image=postgres:14-alpine -i --rm --restart=Never -- \
+psql -U postgres -h postgresql-0.postgresql -d test -c 'select * from message'
+
+-- postgresql-0 can be replaced with postgresql-1, -2 .....
+
+
+kubectl run --env="PGPASSWORD=postgres" postgresql-client --image=postgres:14-alpine -i --rm --restart=Never -- \
+psql -U postgres -h postgresql-read -d test -c 'select * from message'
+
+
+########
+kubectl run --env="PGPASSWORD=postgres" postgresql-client --image=postgres:14-alpine -i --rm --restart=Never -- \
+bash -ic "while sleep 1; do psql -U postgres -h postgresql-read -c \
+'select pg_read_file('\''/docker-entrypoint-initdb.d/server-id.cnf'\'', 16, 13),now()'; done"
+
+Scale up and get something like:
+
+ pg_read_file  |              now
+---------------+-------------------------------
+ server-id=100 | 2024-06-20 19:03:05.985405+00
+(1 row)
+
+ pg_read_file  |              now
+---------------+-------------------------------
+ server-id=103 | 2024-06-20 19:03:07.745653+00
+(1 row)
+
+ pg_read_file  |             now
+---------------+------------------------------
+ server-id=101 | 2024-06-20 19:03:09.35238+00
+(1 row)
+
+Note:
+ 'select pg_read_file('/docker-entrypoint-initdb.d/server-id.cnf', 16, 13),now()'
+will not work becase ' the quotion mark is not recognized as a string!
