@@ -1,0 +1,72 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-postgresql-0 # <claim template name>-<stateful set name>-<stateful set number>
+spec:
+  storageClassName: nfs
+  volumeName: pv-postgresql-0
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-postgresql-1 # <claim template name>-<stateful set name>-<stateful set number>
+spec:
+  storageClassName: nfs
+  volumeName: pv-postgresql-1
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-postgresql-2 # <claim template name>-<stateful set name>-<stateful set number>
+spec:
+  storageClassName: nfs
+  volumeName: pv-postgresql-2
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-postgresql-3 # <claim template name>-<stateful set name>-<stateful set number>
+spec:
+  storageClassName: nfs
+  volumeName: pv-postgresql-3
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-postgresql-4 # <claim template name>-<stateful set name>-<stateful set number>
+spec:
+  storageClassName: nfs
+  volumeName: pv-postgresql-4
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,40 @@
+It is all about the persistence of the persistent volume when it came 
+to draining the node in k8s cluster!
+
+The hostpath-provisoner storage is handy to use but it is node-based and 
+is not persisiten against the drain operation of the node. NFS, network file system, provides 
+a solution for persistent volume outside the node, with which node can be drained
+without causing any issues about volume persistence.
+
+However, unlike the hostpath provisoner, where dynamic storage provision
+is availabe, the NFS storage needs to be prosioned mannulay before hand.  
+Here is how.
+
+### In this demo the nfs is mounted on the host of the minikube cluster.
+### Assuming the statefulset will be scaled up to 
+### 5 replicas.
+  
+-- On the host of the minikube (srv2)
+$ sudo apt install nfs-kernel-server
+
+$ sudo mkdir -p /mnt/nfs/data-postgresql-0 && sudo chown -R nobody:nogroup /mnt/nfs/data-postgresql-0
+  Create 5 such folders in squential ordinals for 5 replicas to be created.
+
+Next add five lines to the /etc/exports
+/mnt/nfs/data-postgresql-0  *(rw,sync,no_subtree_check,no_root_squash,insecure)
+.....
+, in the ordinal sequenials.  
+
+$ sudo exportfs -a && sudo systemctl restart nfs-kernel-server
+
+$ sudo exportfs -v
+to display the current export list.  
+
+The local nfs storage is now ready to be served, physically.
+
+Then define the pv and pvc in two yaml files, 5 instancs for each and apply them.
+
+Applying the statefulset and do the all the test as describe
+here
+https://kubernetes.io/docs/tasks/run-application/run-replicated-stateful-application/  
+. Works like a charm, including the drain.
