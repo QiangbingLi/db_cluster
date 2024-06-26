@@ -23,7 +23,7 @@ keywords:
 
 
 Further thought:
-1. What if the primary instance fails over? Can one of the replicas take over?
+1. What if the primary instance fails? Can one of the replicas take over?
 2. Noting the resemblance of the suquential syncing and the linked list, extend 
    k8s with a custom controler for crd db_cluster, in python, for instance.   
  

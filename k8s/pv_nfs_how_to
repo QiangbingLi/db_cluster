@@ -1,4 +1,4 @@
-It is all about the persistence of the persistent volume when it came 
+It is all about the persistence of the persistent volumes when it comes 
 to draining the node in k8s cluster!
 
 The hostpath-provisoner storage is handy to use but it is node-based and 
@@ -7,7 +7,7 @@ a solution for persistent volume outside the node, with which node can be draine
 without causing any issues about volume persistence.
 
 However, unlike the hostpath provisoner, where dynamic storage provision
-is availabe, the NFS storage needs to be provisioned manually beforehand.  
+is availabe, the NFS storage needs to be manually preprovisioned.  
 Here is how.
 
 ### In this demo the nfs is mounted on the host of the minikube cluster.
